@@ -22,27 +22,11 @@ class StatusCards extends StatelessWidget {
           // Ultrasonic (Live)
           const _UltrasonicLiveCard(),
 
-          // Raspberry Pi status (static)
-          _StatusCard(
-            title: 'Raspberry Pi',
-            value: 'ON',
-            subtitle: 'Device Status',
-            backgroundColor: const Color.fromARGB(255, 255, 228, 235),
-            imagePath: 'assets/raspberrypi.png',
-            iconSize: 90,
-            iconColor: Colors.pink,
-          ),
+          // Raspberry Pi status (live)
+          const _RaspberryPiLiveCard(),
 
-          // Camera status (static)
-          _StatusCard(
-            title: 'Camera',
-            value: 'OFF',
-            subtitle: 'Device Status',
-            backgroundColor: const Color.fromARGB(255, 210, 230, 255),
-            icon: Icons.videocam_outlined,
-            iconSize: 100,
-            iconColor: Colors.blue,
-          ),
+          // Camera status (live)
+          const _CameraLiveCard(),
         ],
       ),
     );
@@ -132,9 +116,9 @@ class _UltrasonicLiveCard extends StatelessWidget {
             title: 'Proximity Distance',
             value: '...',
             subtitle: 'Loading...',
-            backgroundColor: const Color.fromARGB(255, 210, 255, 210),
+            backgroundColor: const Color.fromARGB(255, 229, 204, 255),
             icon: Icons.radar_outlined,
-            iconColor: Color.fromARGB(255, 22, 100, 25),
+            iconColor: const Color.fromARGB(255, 94, 20, 107),
             iconSize: 100,
           );
         }
@@ -156,9 +140,9 @@ class _UltrasonicLiveCard extends StatelessWidget {
           title: 'Proximity Distance',
           value: "${distance.toStringAsFixed(2)} cm",
           subtitle: "Status: $message\nUpdated: $timestamp",
-          backgroundColor: const Color.fromARGB(255, 210, 255, 210),
+          backgroundColor: const Color.fromARGB(255, 229, 204, 255),
           icon: Icons.radar_outlined,
-          iconColor: Color.fromARGB(255, 22, 100, 25),
+          iconColor: const Color.fromARGB(255, 94, 20, 107),
           iconSize: 100,
         );
       },
@@ -166,7 +150,69 @@ class _UltrasonicLiveCard extends StatelessWidget {
   }
 }
 
-class _StatusCard extends StatelessWidget {
+// Live Raspberry Pi card
+class _RaspberryPiLiveCard extends StatelessWidget {
+  const _RaspberryPiLiveCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final ref = FirebaseDatabase.instance.ref("deviceStatus/raspberryPi");
+
+    return StreamBuilder(
+      stream: ref.onValue,
+      builder: (context, snapshot) {
+        String status = "OFF";
+
+        if (snapshot.hasData && snapshot.data!.snapshot.value != null) {
+          status = snapshot.data!.snapshot.value.toString().toUpperCase();
+        }
+
+        return _StatusCard(
+          title: 'Raspberry Pi',
+          value: status,
+          subtitle: 'Device Status',
+          backgroundColor: const Color.fromARGB(255, 255, 255, 255),
+          imagePath: 'assets/raspberrypi.png',
+          iconSize: 90,
+          iconColor: const Color.fromARGB(255, 0, 0, 0),
+        );
+      },
+    );
+  }
+}
+
+// Live Camera card
+class _CameraLiveCard extends StatelessWidget {
+  const _CameraLiveCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final ref = FirebaseDatabase.instance.ref("deviceStatus/camera");
+
+    return StreamBuilder(
+      stream: ref.onValue,
+      builder: (context, snapshot) {
+        String status = "OFF";
+
+        if (snapshot.hasData && snapshot.data!.snapshot.value != null) {
+          status = snapshot.data!.snapshot.value.toString().toUpperCase();
+        }
+
+        return _StatusCard(
+          title: 'Camera',
+          value: status,
+          subtitle: 'Device Status',
+          backgroundColor: const Color.fromARGB(255, 255, 255, 255),
+          icon: Icons.videocam_outlined,
+          iconSize: 100,
+          iconColor: const Color.fromARGB(255, 0, 0, 0),
+        );
+      },
+    );
+  }
+}
+
+class _StatusCard extends StatefulWidget {
   final String title;
   final String value;
   final String? subtitle;
@@ -186,70 +232,116 @@ class _StatusCard extends StatelessWidget {
     this.iconColor = Colors.black,
     this.iconSize = 36,
   }) : assert(icon != null || imagePath != null,
-            'Either icon or imagePath must be provided');
+              'Either icon or imagePath must be provided');
+
+  @override
+  State<_StatusCard> createState() => _StatusCardState();
+}
+
+class _StatusCardState extends State<_StatusCard> {
+  bool isHovered = false;
+  
+  Color dynamicBackground(String title, String value) {
+  // Only Raspberry Pi & Camera use dynamic background
+  if (title == "Raspberry Pi" || title == "Camera") {
+    if (value.toUpperCase() == "ON") {
+      return const Color.fromARGB(255, 105, 255, 143); // bright green
+    } else if (value.toUpperCase() == "OFF") {
+      return const Color.fromARGB(255, 255, 107, 107); // bright red
+    }
+  }
+
+  // default background from widget
+  return widget.backgroundColor;
+}
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      color: backgroundColor,
-      elevation: 0,
-      margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            imagePath != null
-                ? Image.asset(
-                    imagePath!,
-                    width: iconSize,
-                    height: iconSize,
-                    color: iconColor,
-                  )
-                : Icon(
-                    icon,
-                    size: iconSize,
-                    color: iconColor,
-                  ),
-            const SizedBox(width: 18),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    color: Colors.black,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    color: Color.fromARGB(255, 86, 86, 86),
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                if (subtitle != null) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle!,
-                    style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black54,
-                    ),
-                  ),
-                ]
-              ],
+    return MouseRegion(
+      onEnter: (_) => setState(() => isHovered = true),
+      onExit: (_) => setState(() => isHovered = false),
+      cursor: SystemMouseCursors.click,
+
+      child: AnimatedScale(
+        duration: const Duration(milliseconds: 180),
+        scale: isHovered ? 1.03 : 1.0,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: isHovered
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.15),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    )
+                  ]
+                : [],
+          ),
+          child: Card(
+            color: dynamicBackground(widget.title, widget.value),
+            elevation: 0,
+            margin: EdgeInsets.zero,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
             ),
-          ],
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  widget.imagePath != null
+                      ? Image.asset(
+                          widget.imagePath!,
+                          width: widget.iconSize,
+                          height: widget.iconSize,
+                          color: widget.iconColor,
+                        )
+                      : Icon(
+                          widget.icon,
+                          size: widget.iconSize,
+                          color: widget.iconColor,
+                        ),
+                  const SizedBox(width: 18),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        widget.title,
+                        style: const TextStyle(
+                          fontSize: 24,
+                          color: Colors.black,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        widget.value,
+                        style: const TextStyle(
+                          color: Color.fromARGB(255, 39, 39, 39),
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      if (widget.subtitle != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          widget.subtitle!,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black54,
+                          ),
+                        ),
+                      ]
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );

@@ -63,7 +63,7 @@ class _GPSLiveStreamViewState extends State<GPSLiveStreamView> {
           _rpiMarker = Marker(
             markerId: const MarkerId("rpi"),
             position: newPos,
-            infoWindow: const InfoWindow(title: "Raspberry Pi"),
+            infoWindow: const InfoWindow(title: "Navia LIVE"),
           );
           _markers.add(_rpiMarker!);
         } else {
