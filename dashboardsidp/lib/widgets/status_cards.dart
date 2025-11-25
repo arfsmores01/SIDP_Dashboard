@@ -58,39 +58,34 @@ class _ObjectDetectionLiveCard extends StatelessWidget {
         final data =
             Map<dynamic, dynamic>.from(snapshot.data!.snapshot.value as Map);
 
-        final latestKey = data.keys.last;
-        final latestEntry =
-            Map<dynamic, dynamic>.from(data[latestKey] as Map);
-
-        // Get list of objects_detected
+        // Read directly
         final objectsList =
-            List<dynamic>.from(latestEntry["objects_detected"] ?? []);
+            List<dynamic>.from(data["objects_detected"] ?? []);
+        final timestamp = data["timestamp"] ?? "-";
 
         final detectedCount = objectsList.length;
 
-        // Extract names from each object
-        List<String> objectNamesList = objectsList.map((obj) {
+        // Extract names
+        List<String> objectNames = objectsList.map((obj) {
           if (obj is Map && obj["name"] != null) return obj["name"].toString();
           return obj.toString();
         }).toList();
 
-        // Limit display to first 3 objects, add "+N more" if needed
-        String objectNamesDisplay;
-        const int maxDisplay = 3;
-        if (objectNamesList.length > maxDisplay) {
-          final remaining = objectNamesList.length - maxDisplay;
-          objectNamesDisplay =
-              "${objectNamesList.take(maxDisplay).join(', ')}, +$remaining more";
-        } else {
-          objectNamesDisplay = objectNamesList.join(', ');
-        }
+        // Limit to 3 names
+        String displayNames;
+        const maxDisplay = 3;
 
-        final timestamp = latestEntry["timestamp"] ?? "-";
+        if (objectNames.length > maxDisplay) {
+          displayNames =
+              "${objectNames.take(maxDisplay).join(', ')}, +${objectNames.length - maxDisplay} more";
+        } else {
+          displayNames = objectNames.join(", ");
+        }
 
         return _StatusCard(
           title: 'Object Detection',
           value: "$detectedCount",
-          subtitle: "Object: $objectNamesDisplay\nUpdated: $timestamp",
+          subtitle: "Object: $displayNames\nUpdated: $timestamp",
           backgroundColor: const Color.fromARGB(255, 255, 245, 210),
           icon: Icons.camera_alt,
           iconColor: Colors.orange,
@@ -127,14 +122,10 @@ class _UltrasonicLiveCard extends StatelessWidget {
         final data =
             Map<dynamic, dynamic>.from(snapshot.data!.snapshot.value as Map);
 
-        // Get last child
-        final latestKey = data.keys.last;
-        final latestEntry =
-            Map<dynamic, dynamic>.from(data[latestKey] as Map);
-
-        final distance = latestEntry["distance_cm"] ?? 0.0;
-        final message = latestEntry["message"] ?? "-";
-        final timestamp = latestEntry["timestamp"] ?? "-";
+        // Direct reading
+        final distance = (data["distance_cm"] ?? 0.0).toDouble();
+        final message = data["message"] ?? "-";
+        final timestamp = data["timestamp"] ?? "-";
 
         return _StatusCard(
           title: 'Proximity Distance',

@@ -63,7 +63,7 @@ class _GPSLiveStreamViewState extends State<GPSLiveStreamView> {
           _rpiMarker = Marker(
             markerId: const MarkerId("rpi"),
             position: newPos,
-            infoWindow: const InfoWindow(title: "Navia LIVE"),
+            infoWindow: const InfoWindow(title: "Raspberry Pi"),
           );
           _markers.add(_rpiMarker!);
         } else {
@@ -125,20 +125,19 @@ class _GPSLiveStreamViewState extends State<GPSLiveStreamView> {
         // Firebase Live Stream Card
         Expanded(
           child: Card(
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
             clipBehavior: Clip.antiAlias,
             child: _frameBytes == null
                 ? const Center(child: CircularProgressIndicator())
                 : SizedBox(
                     height: 400,
-                    child: FittedBox(
-                      fit: BoxFit.cover,
-                      alignment: Alignment.center,
-                      child: Image.memory(
-                        _frameBytes!,
-                        gaplessPlayback: true,
-                      ),
+                    width: double.infinity,
+                    child: Image.memory(
+                      _frameBytes!,
+                      fit: BoxFit.fill,
+                      gaplessPlayback: true,
                     ),
                   ),
           ),
