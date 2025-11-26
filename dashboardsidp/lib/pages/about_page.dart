@@ -49,22 +49,42 @@ class AboutPage extends StatelessWidget {
   }
 
   // Widget for a team member with LinkedIn button
-  Widget teamMember(String name, String linkedInUrl) {
-    return Row(
-      children: [
-        Text(name, style: const TextStyle(fontSize: 16)),
-        const SizedBox(width: 8),
-        IconButton(
-          icon: Image.network(
-            'https://cdn-icons-png.flaticon.com/512/174/174857.png',
-            width: 24,
-            height: 24,
+  Widget teamMember(String name, String subtitle, String linkedInUrl) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,   // <-- Center icon with text block
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                name,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                subtitle,
+                style: const TextStyle(fontSize: 14, color: Color.fromARGB(255, 66, 64, 64)),
+              ),
+            ],
           ),
-          onPressed: () {
-            _launchURL(linkedInUrl);
-          },
-        ),
-      ],
+          const SizedBox(width: 12),
+          IconButton(
+            icon: Image.network(
+              'https://cdn-icons-png.flaticon.com/512/174/174857.png',
+              width: 24,
+              height: 24,
+            ),
+            onPressed: () {
+              _launchURL(linkedInUrl);
+            },
+          ),
+        ],
+      ),
     );
   }
 
@@ -89,8 +109,9 @@ class AboutPage extends StatelessWidget {
         child: Column(
           children: [
             sectionCard(
-              'RBB4013 / EDB4703 – System Integrated Design Project (September 2025)',
-              const Text('Universiti Teknologi PETRONAS (UTP)',
+              'RBB4013 / EDB4703 – System Integrated Design Project',
+              const Text('Universiti Teknologi PETRONAS (UTP)\n'
+              'Bachelor of Computer Engineering - September 2025',
                   style: TextStyle(fontSize: 16)),
             ),
             sectionCard(
@@ -102,24 +123,41 @@ class AboutPage extends StatelessWidget {
               ),
             ),
             sectionCard(
+              'Project Supervisor',
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  teamMember(
+                    'Dr. Norashikin Bt Yahya',
+                    'Senior Lecturer (Electrical & Electronics Engineering)',
+                    'https://www.linkedin.com/in/norashikin-yahya-0a78a531/',
+                  ),
+                ],
+              ),
+            ),
+            sectionCard(
               'Project Team',
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   teamMember(
                     'Ainul Raudhah Binti Nor Hakma',
+                    '21001745',
                     'https://www.linkedin.com/in/ainul-raudhah-nor-hakma-81857a2a2',
                   ),
                   teamMember(
                     'Arif Syahmi Bin Muhamad \'Asri',
+                    '21001327',
                     'https://www.linkedin.com/in/arif-syahmi-97917932a',
                   ),
                   teamMember(
                     'Foo Zhe Cheng',
+                    '21000613',
                     'https://www.linkedin.com/in/foo-zhe-cheng-6284b0211',
                   ),
                   teamMember(
                     'Muhammad Fakhrul Hafiz Bin Mohd Anuar',
+                    '21001623',
                     'https://www.linkedin.com/in/fakhrullhafiz',
                   ),
                 ],
