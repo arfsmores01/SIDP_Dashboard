@@ -1,240 +1,237 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:intl/intl.dart';
+import 'package:geocoding/geocoding.dart';
 
 //////////////////////////////////////////////////////////////////////
-//  MODEL: SOS History Entry
+//                     TIMESTAMP FORMATTER
 //////////////////////////////////////////////////////////////////////
 
-class SosHistoryEntry {
-  final double latitude;
-  final double longitude;
-  final DateTime timestamp;
-
-  SosHistoryEntry({
-    required this.latitude,
-    required this.longitude,
-    required this.timestamp,
-  });
-
-  factory SosHistoryEntry.fromMap(Map<dynamic, dynamic> map) {
-    return SosHistoryEntry(
-      latitude: (map['latitude'] ?? 0).toDouble(),
-      longitude: (map['longitude'] ?? 0).toDouble(),
-      timestamp: DateTime.parse(map['timestamp']),
-    );
+String formatTime(String ts) {
+  try {
+    final date = DateFormat("yyyy/MM/dd HH:mm:ss").parse(ts);
+    return DateFormat("hh:mm a").format(date);
+  } catch (_) {
+    return "";
   }
 }
 
 //////////////////////////////////////////////////////////////////////
-//  DATABASE FETCH (REAL-TIME STREAM)
+//                     CLEAN GRID STYLE (unused but keep)
 //////////////////////////////////////////////////////////////////////
 
-Stream<List<SosHistoryEntry>> fetchSosHistory() {
-  final ref = FirebaseDatabase.instance.ref().child("sosDB/history");
-
-  return ref.onValue.map((event) {
-    final data = event.snapshot.value as Map?;
-    if (data == null) return [];
-
-    return data.values
-        .map((e) => SosHistoryEntry.fromMap(Map<dynamic, dynamic>.from(e)))
-        .toList()
-      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
-  });
+FlGridData cleanGrid() {
+  return FlGridData(
+    show: true,
+    drawVerticalLine: false,
+    horizontalInterval: 1.0,
+    getDrawingHorizontalLine: (value) => FlLine(
+      color: Colors.grey.withValues(alpha: 0.15),
+      strokeWidth: 1.0,
+    ),
+  );
 }
 
 //////////////////////////////////////////////////////////////////////
-//              LINE CHART (ANALYTICS)
-//      Uses Firebase data to generate FlSpots
+//                    SOS HISTORY LIST  (HOVER ENABLED)
 //////////////////////////////////////////////////////////////////////
 
-class EmergencySosAnalyticsChart extends StatelessWidget {
-  final List<SosHistoryEntry> history;
+class SosHistoryList extends StatelessWidget {
+  const SosHistoryList({super.key});
 
-  const EmergencySosAnalyticsChart({super.key, required this.history});
+  Future<String> _getAddress(double lat, double lng) async {
+    try {
+      final placemarks = await placemarkFromCoordinates(lat, lng);
+      final p = placemarks.first;
 
-  @override
-  Widget build(BuildContext context) {
-    final spots = <FlSpot>[];
-
-    for (int i = 0; i < history.length; i++) {
-      spots.add(FlSpot(i.toDouble(), (i + 1).toDouble()));
+      return "${p.street ?? ''}, ${p.locality ?? ''}, ${p.administrativeArea ?? ''}";
+    } catch (e) {
+      return "Address unavailable";
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ref = FirebaseDatabase.instance.ref("sosDB/history");
 
     return Container(
-      height: 350,
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+      decoration: _box(),
+      child: StreamBuilder(
+        stream: ref.onValue,
+        builder: (context, snapshot) {
+          if (!snapshot.hasData || snapshot.data!.snapshot.value == null) {
+            return const Center(child: Text("Loading..."));
+          }
 
-      child: LineChart(
-        LineChartData(
-          minX: 0,
-          maxX: spots.isEmpty ? 6 : spots.last.x,
-          minY: 0,
-          maxY: spots.isEmpty ? 7 : spots.last.y + 1,
+          final raw = snapshot.data!.snapshot.value as Map;
 
-          gridData: const FlGridData(
-            show: true,
-            drawVerticalLine: true,
-            drawHorizontalLine: true,
-          ),
+          List<Map> entries = [];
+          raw.forEach((key, value) {
+            if (value is Map && value.containsKey("timestamp")) {
+              entries.add(value);
+            }
+          });
 
-          borderData: FlBorderData(
-            show: true,
-            border: Border(
-              bottom: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
-              left: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+          entries.sort((a, b) => b["timestamp"].compareTo(a["timestamp"]));
+
+          // 👉 HOVER STATES LIST
+          List<ValueNotifier<bool>> isHovering =
+              List.generate(entries.length, (_) => ValueNotifier(false));
+
+          return SizedBox(
+            height: 300,
+            child: ListView.builder(
+              padding: EdgeInsets.zero,
+              itemCount: entries.length,
+              itemBuilder: (context, index) {
+                final item = entries[index];
+
+                final tsString = item["timestamp"];
+                final dt = DateFormat("yyyy/MM/dd HH:mm:ss").parse(tsString);
+
+                final date = DateFormat("dd MMM yyyy").format(dt);
+                final time = DateFormat("hh:mm a").format(dt);
+
+                String duration = "—";
+                if (index > 0) {
+                  final prev = DateFormat("yyyy/MM/dd HH:mm:ss")
+                      .parse(entries[index - 1]["timestamp"]);
+
+                  final diff = dt.difference(prev).inSeconds;
+
+                  duration = "$diff sec";
+                }
+
+                final double lat =
+                    double.tryParse(item["latitude"].toString()) ?? 0.0;
+                final double lng =
+                    double.tryParse(item["longitude"].toString()) ?? 0.0;
+
+                return FutureBuilder(
+                  future: _getAddress(lat, lng),
+                  builder: (context, snap) {
+                    final address =
+                        snap.data?.toString() ?? "Address unavailable";
+
+                    return MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      onEnter: (_) => isHovering[index].value = true,
+                      onExit: (_) => isHovering[index].value = false,
+
+                      child: ValueListenableBuilder<bool>(
+                        valueListenable: isHovering[index],
+                        builder: (context, hovered, _) {
+                          return AnimatedScale(
+                            scale: hovered ? 1.0001 : 1.0,
+                            duration: const Duration(milliseconds: 180),
+                            curve: Curves.easeOut,
+
+                            child: AnimatedContainer(
+                              duration:
+                                  const Duration(milliseconds: 180),
+                              curve: Curves.easeOut,
+
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 12, horizontal: 12),
+                              margin:
+                                  const EdgeInsets.only(bottom: 12),
+
+                              decoration: BoxDecoration(
+                                color: hovered
+                                    ? Colors.blueAccent.shade100
+                                    : Colors.grey.shade100,
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    // ignore: deprecated_member_use
+                                    color: Colors.black.withOpacity(
+                                        hovered ? 0.18 : 0.10),
+                                    blurRadius:
+                                        hovered ? 18 : 10,
+                                    offset: const Offset(0, 6),
+                                  ),
+                                ],
+                              ),
+
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // DATE + TIME ROW
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(time,
+                                          style: const TextStyle(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.bold)),
+                                      Text(date,
+                                          style: const TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.black54)),
+                                    ],
+                                  ),
+
+                                  const SizedBox(height: 6),
+
+                                  // COORDINATES
+                                  Text("Latitude: $lat  |  Longitude: $lng",
+                                      style:
+                                          const TextStyle(fontSize: 13)),
+
+                                  const SizedBox(height: 6),
+
+                                  // DURATION
+                                  Text("Duration: $duration",
+                                      style: const TextStyle(
+                                          fontSize: 13,
+                                          color: Colors.black87)),
+
+                                  const SizedBox(height: 6),
+
+                                  // ADDRESS
+                                  Text(
+                                    "Location: $address",
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: Colors.grey.shade700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    );
+                  },
+                );
+              },
             ),
-          ),
-
-          titlesData: FlTitlesData(
-            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                reservedSize: 30,
-                getTitlesWidget: (value, meta) {
-                  if (history.isEmpty) return const SizedBox.shrink();
-
-                  if (value.toInt() < 0 || value.toInt() >= history.length) {
-                    return const SizedBox.shrink();
-                  }
-
-                  final dt = history[value.toInt()].timestamp;
-                  final day = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][dt.weekday - 1];
-
-                  return Text(
-                    day,
-                    style: const TextStyle(
-                      color: Colors.black54,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
-                  );
-                },
-              ),
-            ),
-
-            leftTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                reservedSize: 40,
-                getTitlesWidget: (value, meta) => Text(
-                  value.toInt().toString(),
-                  style: const TextStyle(
-                    color: Colors.black54,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            ),
-          ),
-
-          lineBarsData: [
-            LineChartBarData(
-              isCurved: true,
-              barWidth: 4,
-              isStrokeCapRound: true,
-              spots: spots,
-
-              gradient: LinearGradient(
-                colors: [
-                  const Color(0xFF0D7DDF).withValues(alpha: 0.5),
-                  const Color(0xFF0D7DDF).withValues(alpha: 0.5),
-                ],
-              ),
-
-              dotData: FlDotData(
-                show: true,
-                getDotPainter: (_, _, _, _) => FlDotCirclePainter(
-                  radius: 5,
-                  color: const Color(0xFF0D7DDF),
-                  strokeWidth: 2,
-                  strokeColor: Colors.white,
-                ),
-              ),
-
-              belowBarData: BarAreaData(
-                show: true,
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    const Color(0xFF0D7DDF).withValues(alpha: 0.3),
-                    const Color(0xFF0D7DDF).withValues(alpha: 0.0),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
 }
 
 //////////////////////////////////////////////////////////////////////
-//              PIE CHART (SUMMARY)
-//     Shows total SOS events dynamically
+//                         BOX STYLE
 //////////////////////////////////////////////////////////////////////
 
-class EmergencySosSummaryChart extends StatelessWidget {
-  final List<SosHistoryEntry> history;
-
-  const EmergencySosSummaryChart({super.key, required this.history});
-
-  @override
-  Widget build(BuildContext context) {
-    final total = history.length.toDouble();
-
-    return Container(
-      height: 350,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+BoxDecoration _box() {
+  return BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(14),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black.withValues(alpha: 0.15),
+        blurRadius: 10,
+        offset: const Offset(0, 4),
       ),
-
-      child: PieChart(
-        PieChartData(
-          centerSpaceRadius: 60,
-          sectionsSpace: 4,
-          sections: [
-            PieChartSectionData(
-              value: total,
-              radius: 80,
-              color: const Color(0xFF0D7DDF),
-              title: '${total.toInt()} SOS',
-              titleStyle: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+    ],
+  );
 }

@@ -64,17 +64,21 @@ class ObjectDetectionChart extends StatelessWidget {
             return const Center(child: Text("Loading..."));
           }
 
+          // Firebase root map
           final raw = snapshot.data!.snapshot.value as Map;
-          final List<Map> entries = [];
 
+          // Collect entries with timestamp + objects_detected
+          final List<Map> entries = [];
           raw.forEach((key, value) {
             if (value is Map && value.containsKey("timestamp")) {
               entries.add(value);
             }
           });
 
+          // Sort by timestamp
           entries.sort((a, b) => a["timestamp"].compareTo(b["timestamp"]));
 
+          // Keep latest 20 entries
           final trimmed = entries.length > 20
               ? entries.sublist(entries.length - 20)
               : entries;
@@ -86,15 +90,19 @@ class ObjectDetectionChart extends StatelessWidget {
           for (var entry in trimmed) {
             labels.add(formatTime(entry["timestamp"]));
 
-            double count = entry["objects_detected"] is Map
-                ? (entry["objects_detected"] as Map).length.toDouble()
-                : 0.0;
+            double count = 0;
+
+            // Count total detected objects
+            if (entry["objects_detected"] is Map) {
+              final map = entry["objects_detected"] as Map;
+              count = map.length.toDouble();     // <-- FIXED
+            }
 
             spots.add(FlSpot(index.toDouble(), count));
             index++;
           }
 
-          // Auto Y scale
+          // Auto Y-scale
           double highest = spots.isNotEmpty
               ? spots.map((e) => e.y).reduce((a, b) => a > b ? a : b)
               : 5;
@@ -109,8 +117,12 @@ class ObjectDetectionChart extends StatelessWidget {
               borderData: FlBorderData(show: false),
 
               titlesData: FlTitlesData(
-                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                topTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ),
+                rightTitles: const AxisTitles(
+                  sideTitles: SideTitles(showTitles: false),
+                ),
 
                 leftTitles: AxisTitles(
                   sideTitles: SideTitles(
@@ -138,7 +150,10 @@ class ObjectDetectionChart extends StatelessWidget {
 
                       return Transform.rotate(
                         angle: -0.7,
-                        child: Text(labels[idx], style: const TextStyle(fontSize: 10)),
+                        child: Text(
+                          labels[idx],
+                          style: const TextStyle(fontSize: 10),
+                        ),
                       );
                     },
                   ),
