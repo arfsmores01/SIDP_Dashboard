@@ -33,10 +33,21 @@ FlGridData cleanGrid() {
 }
 
 //////////////////////////////////////////////////////////////////////
-//                 OBJECT DETECTION HISTORY (AUTO SCALE)
+//      OBJECT DETECTION HISTORY (AUTO-SCALE Y AXIS, 20 ENTRIES)
 //////////////////////////////////////////////////////////////////////
 class ObjectDetectionChart extends StatelessWidget {
   const ObjectDetectionChart({super.key});
+
+  // Smart auto-scaling to nice round numbers
+  double autoScaleY(int maxValue) {
+    if (maxValue <= 5) return 5;
+    if (maxValue <= 10) return 10;
+    if (maxValue <= 20) return 20;
+    if (maxValue <= 40) return 40;
+    if (maxValue <= 80) return 80;
+    if (maxValue <= 100) return 100;
+    return (maxValue * 1.2).ceilToDouble(); // fallback
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -60,79 +71,81 @@ class ObjectDetectionChart extends StatelessWidget {
       child: StreamBuilder(
         stream: ref.onValue,
         builder: (context, snapshot) {
-          if (!snapshot.hasData || snapshot.data!.snapshot.value == null) {
-            return const Center(child: Text("Loading..."));
+          if (!snapshot.hasData || snapshot.data?.snapshot.value == null) {
+            return const Center(child: Text("No data"));
           }
 
-          // Firebase root map
           final raw = snapshot.data!.snapshot.value as Map;
 
-          // Collect entries with timestamp + objects_detected
-          final List<Map> entries = [];
-          raw.forEach((key, value) {
-            if (value is Map && value.containsKey("timestamp")) {
-              entries.add(value);
-            }
-          });
-
           // Sort by timestamp
-          entries.sort((a, b) => a["timestamp"].compareTo(b["timestamp"]));
+          final entries = raw.entries.toList()
+            ..sort((a, b) => a.value["timestamp"].toString().compareTo(
+                  b.value["timestamp"].toString(),
+                ));
 
-          // Keep latest 20 entries
+          // Only last 20 entries
           final trimmed = entries.length > 20
               ? entries.sublist(entries.length - 20)
               : entries;
 
-          final List<FlSpot> spots = [];
-          final List<String> labels = [];
+          List<FlSpot> spots = [];
+          List<String> labels = [];
 
           int index = 0;
-          for (var entry in trimmed) {
-            labels.add(formatTime(entry["timestamp"]));
+          int maxDetected = 0;
 
-            double count = 0;
+          for (var e in trimmed) {
+            final row = e.value;
 
-            // Count total detected objects
-            if (entry["objects_detected"] is Map) {
-              final map = entry["objects_detected"] as Map;
-              count = map.length.toDouble();     // <-- FIXED
+            // Count objects
+            int count = 0;
+            if (row["objects_detected"] != null) {
+              final obj = row["objects_detected"];
+              if (obj is Map) count = obj.length;
+              if (obj is List) count = obj.where((x) => x != null).length;
             }
 
-            spots.add(FlSpot(index.toDouble(), count));
+            if (count > maxDetected) maxDetected = count;
+
+            // Timestamp label
+            String label;
+            try {
+              final dt = DateFormat("yyyy/MM/dd HH:mm:ss").parse(row["timestamp"]);
+              label = DateFormat("hh:mm a").format(dt);
+            } catch (_) {
+              label = "NA";
+            }
+
+            spots.add(FlSpot(index.toDouble(), count.toDouble()));
+            labels.add(label);
             index++;
           }
 
-          // Auto Y-scale
-          double highest = spots.isNotEmpty
-              ? spots.map((e) => e.y).reduce((a, b) => a > b ? a : b)
-              : 5;
-
-          double dynamicMaxY = highest <= 5 ? 5 : (highest + 1);
+          // Compute dynamic Y max
+          final double yMax = autoScaleY(maxDetected);
 
           return LineChart(
             LineChartData(
               minY: 0,
-              maxY: dynamicMaxY,
+              maxY: yMax,
+
               gridData: cleanGrid(),
               borderData: FlBorderData(show: false),
 
               titlesData: FlTitlesData(
-                topTitles: const AxisTitles(
-                  sideTitles: SideTitles(showTitles: false),
-                ),
-                rightTitles: const AxisTitles(
-                  sideTitles: SideTitles(showTitles: false),
-                ),
+                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
 
                 leftTitles: AxisTitles(
                   sideTitles: SideTitles(
                     showTitles: true,
                     reservedSize: 40,
-                    interval: 1,
-                    getTitlesWidget: (value, meta) {
-                      final v = value.toInt();
-                      if (v < 0 || v > dynamicMaxY) return const SizedBox.shrink();
-                      return Text("$v", style: const TextStyle(fontSize: 12));
+                    interval: (yMax / 5).ceilToDouble(),
+                    getTitlesWidget: (v, meta) {
+                      return Text(
+                        v.toInt().toString(),
+                        style: const TextStyle(fontSize: 10),
+                      );
                     },
                   ),
                 ),
@@ -141,19 +154,14 @@ class ObjectDetectionChart extends StatelessWidget {
                   sideTitles: SideTitles(
                     showTitles: true,
                     reservedSize: 40,
-                    interval: 1,
                     getTitlesWidget: (value, meta) {
                       int idx = value.toInt();
                       if (idx < 0 || idx >= labels.length) {
                         return const SizedBox.shrink();
                       }
-
                       return Transform.rotate(
                         angle: -0.7,
-                        child: Text(
-                          labels[idx],
-                          style: const TextStyle(fontSize: 10),
-                        ),
+                        child: Text(labels[idx], style: const TextStyle(fontSize: 10)),
                       );
                     },
                   ),
@@ -166,17 +174,16 @@ class ObjectDetectionChart extends StatelessWidget {
                   isCurved: true,
                   barWidth: 4,
                   isStrokeCapRound: true,
-                  color: const Color(0xFF0D7DDF),
-                  dotData: FlDotData(show: false),
+                  color: Colors.greenAccent,
+
+                  dotData: const FlDotData(show: false),
 
                   belowBarData: BarAreaData(
                     show: true,
                     gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
                       colors: [
-                        const Color(0xFF0D7DDF).withValues(alpha: 0.3),
-                        const Color(0xFF0D7DDF).withValues(alpha: 0.0),
+                        Colors.greenAccent.withValues(alpha: 0.3),
+                        Colors.greenAccent.withValues(alpha: 0.0),
                       ],
                     ),
                   ),

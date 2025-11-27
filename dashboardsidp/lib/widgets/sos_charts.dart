@@ -95,11 +95,11 @@ class SosHistoryList extends StatelessWidget {
                 final time = DateFormat("hh:mm a").format(dt);
 
                 String duration = "—";
-                if (index > 0) {
+                if (index < entries.length - 1) {
                   final prev = DateFormat("yyyy/MM/dd HH:mm:ss")
-                      .parse(entries[index - 1]["timestamp"]);
+                      .parse(entries[index + 1]["timestamp"]);
 
-                  final diff = dt.difference(prev).inSeconds;
+                  final diff = (prev.difference(dt)).inSeconds.abs();
 
                   duration = "$diff sec";
                 }
