@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../widgets/analysis_charts.dart';
 
 class AnalysisPage extends StatelessWidget {
   const AnalysisPage({super.key});
@@ -105,22 +106,6 @@ class AnalysisPage extends StatelessWidget {
                 //                 ANALYTICS CHARTS
                 // ======================================================
 
-                const Text(
-                  "Emergency SOS Analytics",
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 10),
-                const _ChartPlaceholder(text: "Emergency SOS Chart"),
-                const SizedBox(height: 40),
-
-                const Text(
-                  "GPS Analytics",
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 10),
-                const _ChartPlaceholder(text: "GPS Chart"),
-                const SizedBox(height: 40),
-
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -129,11 +114,11 @@ class AnalysisPage extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: const [
                           Text(
-                            "CPU Temperature",
+                            "CPU Temperature Performance",
                             style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                           ),
                           SizedBox(height: 10),
-                          _ChartPlaceholder(text: "CPU Temperature Chart"),
+                          _ChartPlaceholder(text: "CPU Performance Chart"),
                         ],
                       ),
                     ),
@@ -145,11 +130,11 @@ class AnalysisPage extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: const [
                           Text(
-                            "System Performance",
+                            "Emergency SOS Analytics",
                             style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                           ),
                           SizedBox(height: 10),
-                          _ChartPlaceholder(text: "System Performance Chart"),
+                          _ChartPlaceholder(text: "Emergency SOS Chart"),
                         ],
                       ),
                     ),
@@ -160,8 +145,8 @@ class AnalysisPage extends StatelessWidget {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-
-                    Expanded(
+                    Flexible(
+                      fit: FlexFit.loose,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: const [
@@ -170,13 +155,18 @@ class AnalysisPage extends StatelessWidget {
                             style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                           ),
                           SizedBox(height: 10),
-                          _ChartPlaceholder(text: "Object Detection History Chart"),
+                          SizedBox(
+                            height: 400,
+                            child: ObjectDetectionChart(),
+                          ),
                         ],
                       ),
                     ),
 
                     SizedBox(width: 20),
-                    Expanded(
+
+                    Flexible(
+                      fit: FlexFit.loose,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: const [
@@ -185,7 +175,10 @@ class AnalysisPage extends StatelessWidget {
                             style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                           ),
                           SizedBox(height: 10),
-                          _ChartPlaceholder(text: "Proximity Event History Chart"),
+                          SizedBox(
+                            height: 400,
+                            child: DistanceWaveformChart(),
+                          ),
                         ],
                       ),
                     ),

@@ -21,6 +21,7 @@ class AboutPage extends StatelessWidget {
           maxWidth: 1500,
         ),
         child: Card(
+          color: const Color.fromARGB(255, 255, 255, 255),
           elevation: 4,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(15),
@@ -100,7 +101,7 @@ class AboutPage extends StatelessWidget {
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.bold,
-            fontSize: 38,
+            fontSize: 34,
           ),
         ),
       ),
