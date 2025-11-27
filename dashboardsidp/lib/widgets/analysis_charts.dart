@@ -35,7 +35,6 @@ FlGridData cleanGrid() {
 //////////////////////////////////////////////////////////////////////
 //                 OBJECT DETECTION HISTORY (AUTO SCALE)
 //////////////////////////////////////////////////////////////////////
-
 class ObjectDetectionChart extends StatelessWidget {
   const ObjectDetectionChart({super.key});
 
@@ -43,58 +42,66 @@ class ObjectDetectionChart extends StatelessWidget {
   Widget build(BuildContext context) {
     final ref = FirebaseDatabase.instance.ref("objectDetectionDB/history");
 
-    return StreamBuilder(
-      stream: ref.onValue,
-      builder: (context, snapshot) {
-        if (!snapshot.hasData || snapshot.data!.snapshot.value == null) {
-          return const Center(child: Text("Loading..."));
-        }
+    return Container(
+      height: 350,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.15),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
 
-        final raw = snapshot.data!.snapshot.value as Map;
-        final List<Map> entries = [];
-
-        raw.forEach((key, value) {
-          if (value is Map && value.containsKey("timestamp")) {
-            entries.add(value);
+      child: StreamBuilder(
+        stream: ref.onValue,
+        builder: (context, snapshot) {
+          if (!snapshot.hasData || snapshot.data!.snapshot.value == null) {
+            return const Center(child: Text("Loading..."));
           }
-        });
 
-        entries.sort((a, b) => a["timestamp"].compareTo(b["timestamp"]));
+          final raw = snapshot.data!.snapshot.value as Map;
+          final List<Map> entries = [];
 
-        final trimmed = entries.length > 20
-            ? entries.sublist(entries.length - 20)
-            : entries;
+          raw.forEach((key, value) {
+            if (value is Map && value.containsKey("timestamp")) {
+              entries.add(value);
+            }
+          });
 
-        final List<FlSpot> spots = [];
-        final List<String> labels = [];
+          entries.sort((a, b) => a["timestamp"].compareTo(b["timestamp"]));
 
-        int index = 0;
-        for (var entry in trimmed) {
-          labels.add(formatTime(entry["timestamp"]));
+          final trimmed = entries.length > 20
+              ? entries.sublist(entries.length - 20)
+              : entries;
 
-          double count = entry["objects_detected"] is Map
-              ? (entry["objects_detected"] as Map).length.toDouble()
-              : 0.0;
+          final List<FlSpot> spots = [];
+          final List<String> labels = [];
 
-          spots.add(FlSpot(index.toDouble(), count));
-          index++;
-        }
+          int index = 0;
+          for (var entry in trimmed) {
+            labels.add(formatTime(entry["timestamp"]));
 
-        // ================================
-        //       AUTO-SCALE Y-axis
-        // ================================
+            double count = entry["objects_detected"] is Map
+                ? (entry["objects_detected"] as Map).length.toDouble()
+                : 0.0;
 
-        double highest = 0;
-        if (spots.isNotEmpty) {
-          highest = spots.map((e) => e.y).reduce((a, b) => a > b ? a : b);
-        }
+            spots.add(FlSpot(index.toDouble(), count));
+            index++;
+          }
 
-        // If highest <= 5 → maxY = 5
-        // If highest > 5 → maxY = highest + 1
-        double dynamicMaxY = highest <= 5 ? 5 : (highest + 1);
+          // Auto Y scale
+          double highest = spots.isNotEmpty
+              ? spots.map((e) => e.y).reduce((a, b) => a > b ? a : b)
+              : 5;
 
-        return RepaintBoundary(
-          child: LineChart(
+          double dynamicMaxY = highest <= 5 ? 5 : (highest + 1);
+
+          return LineChart(
             LineChartData(
               minY: 0,
               maxY: dynamicMaxY,
@@ -102,13 +109,9 @@ class ObjectDetectionChart extends StatelessWidget {
               borderData: FlBorderData(show: false),
 
               titlesData: FlTitlesData(
-                topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                rightTitles:
-                    AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
 
-                // -----------------------
-                //       CLEAN Y-AXIS
-                // -----------------------
                 leftTitles: AxisTitles(
                   sideTitles: SideTitles(
                     showTitles: true,
@@ -116,29 +119,17 @@ class ObjectDetectionChart extends StatelessWidget {
                     interval: 1,
                     getTitlesWidget: (value, meta) {
                       final v = value.toInt();
-                      if (v < 0) return const SizedBox.shrink();
-
-                      // Only show integers up to the auto-scale maxY
-                      if (v <= dynamicMaxY) {
-                        return Text(
-                          v.toString(),
-                          style: const TextStyle(fontSize: 12),
-                        );
-                      }
-
-                      return const SizedBox.shrink();
+                      if (v < 0 || v > dynamicMaxY) return const SizedBox.shrink();
+                      return Text("$v", style: const TextStyle(fontSize: 12));
                     },
                   ),
                 ),
 
-                // ------------------------
-                //       CLEAN X-AXIS
-                // ------------------------
                 bottomTitles: AxisTitles(
                   sideTitles: SideTitles(
                     showTitles: true,
                     reservedSize: 40,
-                    interval: 5,
+                    interval: 1,
                     getTitlesWidget: (value, meta) {
                       int idx = value.toInt();
                       if (idx < 0 || idx >= labels.length) {
@@ -147,10 +138,7 @@ class ObjectDetectionChart extends StatelessWidget {
 
                       return Transform.rotate(
                         angle: -0.7,
-                        child: Text(
-                          labels[idx],
-                          style: const TextStyle(fontSize: 10),
-                        ),
+                        child: Text(labels[idx], style: const TextStyle(fontSize: 10)),
                       );
                     },
                   ),
@@ -160,16 +148,29 @@ class ObjectDetectionChart extends StatelessWidget {
               lineBarsData: [
                 LineChartBarData(
                   spots: spots,
-                  isCurved: false,
-                  barWidth: 2.5,
-                  color: Colors.blueAccent,
-                  dotData: const FlDotData(show: false),
+                  isCurved: true,
+                  barWidth: 4,
+                  isStrokeCapRound: true,
+                  color: const Color(0xFF0D7DDF),
+                  dotData: FlDotData(show: false),
+
+                  belowBarData: BarAreaData(
+                    show: true,
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        const Color(0xFF0D7DDF).withValues(alpha: 0.3),
+                        const Color(0xFF0D7DDF).withValues(alpha: 0.0),
+                      ],
+                    ),
+                  ),
                 ),
               ],
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }
@@ -177,90 +178,73 @@ class ObjectDetectionChart extends StatelessWidget {
 //////////////////////////////////////////////////////////////////////
 //              PROXIMITY PRIORITY CHART (4 FIXED LEVELS)
 //////////////////////////////////////////////////////////////////////
-
 class DistanceWaveformChart extends StatelessWidget {
   const DistanceWaveformChart({super.key});
 
   int getLevel(double distance) {
-    if (distance < 50) return 1; // Stop
-    if (distance < 100) return 2; // Warning
-    if (distance < 200) return 3; // Caution
-    return 4; // Clear
-  }
-
-  Color getLevelColor(int lvl) {
-    switch (lvl) {
-      case 1:
-        return Colors.redAccent;
-      case 2:
-        return Colors.orangeAccent;
-      case 3:
-        return Colors.yellow.shade700;
-      case 4:
-        return Colors.green;
-    }
-    return Colors.grey;
-  }
-
-  String getLevelLabel(int lvl) {
-    switch (lvl) {
-      case 1:
-        return "Stop";
-      case 2:
-        return "Warning";
-      case 3:
-        return "Caution";
-      case 4:
-        return "Clear";
-    }
-    return "";
+    if (distance < 50) return 1;
+    if (distance < 100) return 2;
+    if (distance < 200) return 3;
+    return 4;
   }
 
   @override
   Widget build(BuildContext context) {
     final ref = FirebaseDatabase.instance.ref("ultrasonicDB/history");
 
-    return StreamBuilder(
-      stream: ref.onValue,
-      builder: (context, snapshot) {
-        if (!snapshot.hasData || snapshot.data!.snapshot.value == null) {
-          return const Center(child: Text("Loading..."));
-        }
+    return Container(
+      height: 350,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.15),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
 
-        final raw = snapshot.data!.snapshot.value as Map;
-        final List<Map> entries = [];
-
-        raw.forEach((key, value) {
-          if (value is Map && value.containsKey("timestamp")) {
-            entries.add(value);
+      child: StreamBuilder(
+        stream: ref.onValue,
+        builder: (context, snapshot) {
+          if (!snapshot.hasData || snapshot.data!.snapshot.value == null) {
+            return const Center(child: Text("Loading..."));
           }
-        });
 
-        entries.sort((a, b) => a["timestamp"].compareTo(b["timestamp"]));
+          final raw = snapshot.data!.snapshot.value as Map;
+          final List<Map> entries = [];
 
-        final trimmed = entries.length > 20
-            ? entries.sublist(entries.length - 20)
-            : entries;
+          raw.forEach((key, value) {
+            if (value is Map && value.containsKey("timestamp")) {
+              entries.add(value);
+            }
+          });
 
-        final List<FlSpot> spots = [];
-        final List<String> labels = [];
+          entries.sort((a, b) => a["timestamp"].compareTo(b["timestamp"]));
 
-        int index = 0;
+          final trimmed = entries.length > 20
+              ? entries.sublist(entries.length - 20)
+              : entries;
 
-        for (var entry in trimmed) {
-          labels.add(formatTime(entry["timestamp"]));
+          final List<FlSpot> spots = [];
+          final List<String> labels = [];
 
-          double dist =
-              double.tryParse(entry["distance_cm"].toString()) ?? 0.0;
+          int index = 0;
 
-          int lvl = getLevel(dist);
+          for (var entry in trimmed) {
+            labels.add(formatTime(entry["timestamp"]));
 
-          spots.add(FlSpot(index.toDouble(), lvl.toDouble()));
-          index++;
-        }
+            double dist = double.tryParse(entry["distance_cm"].toString()) ?? 0.0;
+            int lvl = getLevel(dist);
 
-        return RepaintBoundary(
-          child: LineChart(
+            spots.add(FlSpot(index.toDouble(), lvl.toDouble()));
+            index++;
+          }
+
+          return LineChart(
             LineChartData(
               minY: 1,
               maxY: 4,
@@ -268,24 +252,26 @@ class DistanceWaveformChart extends StatelessWidget {
               borderData: FlBorderData(show: false),
 
               titlesData: FlTitlesData(
-                topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                rightTitles:
-                    AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
 
                 leftTitles: AxisTitles(
                   sideTitles: SideTitles(
                     showTitles: true,
-                    reservedSize: 60,
+                    reservedSize: 50,
                     interval: 1,
                     getTitlesWidget: (value, meta) {
-                      final lvl = value.toInt();
-                      if (lvl < 1 || lvl > 4) {
-                        return const SizedBox.shrink();
+                      switch (value.toInt()) {
+                        case 1:
+                          return const Text("STOP", style: TextStyle(fontSize: 10));
+                        case 2:
+                          return const Text("WARNING", style: TextStyle(fontSize: 10));
+                        case 3:
+                          return const Text("CAUTION", style: TextStyle(fontSize: 10));
+                        case 4:
+                          return const Text("CLEAR", style: TextStyle(fontSize: 10));
                       }
-                      return Text(
-                        getLevelLabel(lvl),
-                        style: const TextStyle(fontSize: 12),
-                      );
+                      return const SizedBox.shrink();
                     },
                   ),
                 ),
@@ -294,7 +280,7 @@ class DistanceWaveformChart extends StatelessWidget {
                   sideTitles: SideTitles(
                     showTitles: true,
                     reservedSize: 40,
-                    interval: 5,
+                    interval: 1,
                     getTitlesWidget: (value, meta) {
                       int idx = value.toInt();
                       if (idx < 0 || idx >= labels.length) {
@@ -303,10 +289,7 @@ class DistanceWaveformChart extends StatelessWidget {
 
                       return Transform.rotate(
                         angle: -0.7,
-                        child: Text(
-                          labels[idx],
-                          style: const TextStyle(fontSize: 10),
-                        ),
+                        child: Text(labels[idx], style: const TextStyle(fontSize: 10)),
                       );
                     },
                   ),
@@ -316,16 +299,28 @@ class DistanceWaveformChart extends StatelessWidget {
               lineBarsData: [
                 LineChartBarData(
                   spots: spots,
-                  isCurved: false,
-                  barWidth: 3,
+                  isCurved: true,
+                  barWidth: 4,
+                  isStrokeCapRound: true,
                   color: Colors.redAccent,
+
                   dotData: const FlDotData(show: false),
+
+                  belowBarData: BarAreaData(
+                    show: true,
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.redAccent.withValues(alpha: 0.3),
+                        Colors.redAccent.withValues(alpha: 0.0),
+                      ],
+                    ),
+                  ),
                 ),
               ],
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }

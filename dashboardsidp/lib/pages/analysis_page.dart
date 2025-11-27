@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../widgets/analysis_charts.dart';
+import '../widgets/sos_charts.dart';
 
 class AnalysisPage extends StatelessWidget {
   const AnalysisPage({super.key});
@@ -112,13 +113,26 @@ class AnalysisPage extends StatelessWidget {
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          Text(
+                        children: [
+                          const Text(
                             "Emergency SOS Analytics",
                             style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                           ),
-                          SizedBox(height: 10),
-                          _ChartPlaceholder(text: "Emergency SOS Chart"),
+                          SizedBox(
+                            height: 400,
+                            child: StreamBuilder(
+                              stream: fetchSosHistory(),
+                              builder: (context, snapshot) {
+                                if (!snapshot.hasData) {
+                                  return const Center(child: CircularProgressIndicator());
+                                }
+
+                                final history = snapshot.data!;
+
+                                return EmergencySosAnalyticsChart(history: history);
+                              },
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -128,13 +142,26 @@ class AnalysisPage extends StatelessWidget {
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          Text(
+                        children: [
+                          const Text(
                             "Emergency SOS Summary",
                             style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                           ),
-                          SizedBox(height: 10),
-                          _ChartPlaceholder(text: "Emergency SOS Events"),
+                          SizedBox(
+                            height: 400,
+                            child: StreamBuilder(
+                              stream: fetchSosHistory(),
+                              builder: (context, snapshot) {
+                                if (!snapshot.hasData) {
+                                  return const Center(child: CircularProgressIndicator());
+                                }
+
+                                final history = snapshot.data!;
+
+                                return EmergencySosSummaryChart(history: history);
+                              },
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -345,7 +372,7 @@ class _ChartPlaceholderState extends State<_ChartPlaceholder> {
           duration: const Duration(milliseconds: 220),
           curve: Curves.easeOut,
 
-          // 🔵 Same card style as summary cards
+          // Same card style as summary cards
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(14),
