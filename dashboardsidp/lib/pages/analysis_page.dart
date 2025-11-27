@@ -114,11 +114,11 @@ class AnalysisPage extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: const [
                           Text(
-                            "CPU Temperature Performance",
+                            "Emergency SOS Analytics",
                             style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                           ),
                           SizedBox(height: 10),
-                          _ChartPlaceholder(text: "CPU Performance Chart"),
+                          _ChartPlaceholder(text: "Emergency SOS Chart"),
                         ],
                       ),
                     ),
@@ -130,11 +130,11 @@ class AnalysisPage extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: const [
                           Text(
-                            "Emergency SOS Analytics",
+                            "Emergency SOS Summary",
                             style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                           ),
                           SizedBox(height: 10),
-                          _ChartPlaceholder(text: "Emergency SOS Chart"),
+                          _ChartPlaceholder(text: "Emergency SOS Events"),
                         ],
                       ),
                     ),
